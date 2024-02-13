@@ -45,7 +45,8 @@ import de.dennisguse.opentracks.stats.TrackStatistics;
 import de.dennisguse.opentracks.util.StringUtils;
 
 /**
- * A fragment to display track statistics to the user for a recorded {@link Track}.
+ * A fragment to display track statistics to the user for a recorded
+ * {@link Track}.
  *
  * @author Sandor Dornbush
  * @author Rodrigo Damazio
@@ -78,7 +79,8 @@ public class StatisticsRecordedFragment extends Fragment {
     private UnitSystem unitSystem = UnitSystem.defaultUnitSystem();
     private boolean preferenceReportSpeed;
 
-    private final SharedPreferences.OnSharedPreferenceChangeListener sharedPreferenceChangeListener = (sharedPreferences, key) -> {
+    private final SharedPreferences.OnSharedPreferenceChangeListener sharedPreferenceChangeListener = (
+            sharedPreferences, key) -> {
         boolean updateUInecessary = false;
 
         if (PreferencesUtils.isKey(R.string.stats_units_key, key)) {
@@ -150,17 +152,20 @@ public class StatisticsRecordedFragment extends Fragment {
 
                     sensorStatistics = contentProviderUtils.getSensorStats(trackId);
 
-                    boolean prefsChanged = this.track == null || (!this.track.getActivityTypeLocalized().equals(trackWithIds.getActivityTypeLocalized()));
+                    boolean prefsChanged = this.track == null
+                            || (!this.track.getActivityTypeLocalized().equals(trackWithIds.getActivityTypeLocalized()));
                     this.track = trackWithIds;
                     if (prefsChanged) {
-                        sharedPreferenceChangeListener.onSharedPreferenceChanged(null, getString(R.string.stats_rate_key));
+                        sharedPreferenceChangeListener.onSharedPreferenceChanged(null,
+                                getString(R.string.stats_rate_key));
                     }
 
                     loadTrackDescription(trackWithIds);
                     updateUI();
                     updateSensorUI();
 
-                    ((TrackRecordedActivity) getActivity()).startPostponedEnterTransitionWith(viewBinding.statsActivityTypeIcon);
+                    ((TrackRecordedActivity) getActivity())
+                            .startPostponedEnterTransitionWith(viewBinding.statsActivityTypeIcon);
                 }
             });
         }
@@ -169,82 +174,102 @@ public class StatisticsRecordedFragment extends Fragment {
     private void loadTrackDescription(@NonNull Track track) {
         viewBinding.statsNameValue.setText(track.getName());
         viewBinding.statsDescriptionValue.setText(track.getDescription());
-        viewBinding.statsStartDatetimeValue.setText(StringUtils.formatDateTimeWithOffsetIfDifferent(track.getStartTime()));
+        viewBinding.statsStartDatetimeValue
+                .setText(StringUtils.formatDateTimeWithOffsetIfDifferent(track.getStartTime()));
+    }
+
+    private void updateUISetTotalDistance(TrackStatistics trackStatistics) {
+        Pair<String, String> parts = DistanceFormatter.Builder()
+                .setUnit(unitSystem)
+                .build(getContext()).getDistanceParts(trackStatistics.getTotalDistance());
+
+        viewBinding.statsDistanceValue.setText(parts.first);
+        viewBinding.statsDistanceUnit.setText(parts.second);
+
+    }
+
+    private void updateUISetActivityType(TrackStatistics trackStatistics) {
+        Context context = getContext();
+        String localizedActivityType = track.getActivityTypeLocalized();
+        int iconDrawableId = ActivityType.findByLocalizedString(context, localizedActivityType)
+                .getIconDrawableId();
+        viewBinding.statsActivityTypeIcon.setImageDrawable(ContextCompat.getDrawable(getContext(), iconDrawableId));
+    }
+
+    private void updatedUISetTimeAndStartDatetime(TrackStatistics trackStatistics) {
+        viewBinding.statsMovingTimeValue.setText(StringUtils.formatElapsedTime(trackStatistics.getMovingTime()));
+        viewBinding.statsTotalTimeValue.setText(StringUtils.formatElapsedTime(trackStatistics.getTotalTime()));
+    }
+
+    private void updatedAverageSpeed(TrackStatistics trackStatistics) {
+        viewBinding.statsAverageSpeedLabel
+                .setText(preferenceReportSpeed ? R.string.stats_average_speed : R.string.stats_average_pace);
+
+        Pair<String, String> parts = formatter.getSpeedParts(trackStatistics.getAverageSpeed());
+        viewBinding.statsAverageSpeedValue.setText(parts.first);
+        viewBinding.statsAverageSpeedUnit.setText(parts.second);
+    }
+
+    private void updatedMaxSpeed(TrackStatistics trackStatistics) {
+        viewBinding.statsMaxSpeedLabel
+                .setText(preferenceReportSpeed ? R.string.stats_max_speed : R.string.stats_fastest_pace);
+
+        Pair<String, String> parts = formatter.getSpeedParts(trackStatistics.getMaxSpeed());
+        viewBinding.statsMaxSpeedValue.setText(parts.first);
+        viewBinding.statsMaxSpeedUnit.setText(parts.second);
+    }
+
+    private void updatedSetMovingSpeed(TrackStatistics trackStatistics) {
+        viewBinding.statsMovingSpeedLabel.setText(
+                preferenceReportSpeed ? R.string.stats_average_moving_speed : R.string.stats_average_moving_pace);
+
+        Pair<String, String> parts = formatter.getSpeedParts(trackStatistics.getAverageMovingSpeed());
+        viewBinding.statsMovingSpeedValue.setText(parts.first);
+        viewBinding.statsMovingSpeedUnit.setText(parts.second);
+    }
+
+    private void updatedSetAltitudeGainAndLoss(TrackStatistics trackStatistics) {
+        Float altitudeGain = trackStatistics.getTotalAltitudeGain();
+        Float altitudeLoss_m = trackStatistics.getTotalAltitudeLoss();
+
+        Pair<String, String> parts;
+
+        parts = StringUtils.getAltitudeParts(getContext(), altitudeGain, unitSystem);
+        viewBinding.statsAltitudeGainValue.setText(parts.first);
+        viewBinding.statsAltitudeGainUnit.setText(parts.second);
+
+        parts = StringUtils.getAltitudeParts(getContext(), altitudeLoss_m, unitSystem);
+        viewBinding.statsAltitudeLossValue.setText(parts.first);
+        viewBinding.statsAltitudeLossUnit.setText(parts.second);
+
+        boolean show = altitudeGain != null && altitudeLoss_m != null;
+        viewBinding.statsAltitudeGroup.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     private void updateUI() {
         TrackStatistics trackStatistics = track.getTrackStatistics();
         // Set total distance
-        {
-            Pair<String, String> parts = DistanceFormatter.Builder()
-                    .setUnit(unitSystem)
-                    .build(getContext()).getDistanceParts(trackStatistics.getTotalDistance());
-
-            viewBinding.statsDistanceValue.setText(parts.first);
-            viewBinding.statsDistanceUnit.setText(parts.second);
-        }
+        updateUISetTotalDistance(trackStatistics);
 
         // Set activity type
-        {
-            Context context = getContext();
-            String localizedActivityType = track.getActivityTypeLocalized();
-            int iconDrawableId = ActivityType.findByLocalizedString(context, localizedActivityType)
-                    .getIconDrawableId();
-            viewBinding.statsActivityTypeIcon.setImageDrawable(ContextCompat.getDrawable(getContext(), iconDrawableId));
-        }
+        updateUISetActivityType(trackStatistics);
 
         // Set time and start datetime
-        {
-            viewBinding.statsMovingTimeValue.setText(StringUtils.formatElapsedTime(trackStatistics.getMovingTime()));
-            viewBinding.statsTotalTimeValue.setText(StringUtils.formatElapsedTime(trackStatistics.getTotalTime()));
-        }
+        updatedUISetTimeAndStartDatetime(trackStatistics);
 
-        SpeedFormatter formatter = SpeedFormatter.Builder().setUnit(unitSystem).setReportSpeedOrPace(preferenceReportSpeed).build(getContext());
+        SpeedFormatter formatter = SpeedFormatter.Builder().setUnit(unitSystem)
+                .setReportSpeedOrPace(preferenceReportSpeed).build(getContext());
         // Set average speed/pace
-        {
-            viewBinding.statsAverageSpeedLabel.setText(preferenceReportSpeed ? R.string.stats_average_speed : R.string.stats_average_pace);
-
-            Pair<String, String> parts = formatter.getSpeedParts(trackStatistics.getAverageSpeed());
-            viewBinding.statsAverageSpeedValue.setText(parts.first);
-            viewBinding.statsAverageSpeedUnit.setText(parts.second);
-        }
+        updatedAverageSpeed(trackStatistics);
 
         // Set max speed/pace
-        {
-            viewBinding.statsMaxSpeedLabel.setText(preferenceReportSpeed ? R.string.stats_max_speed : R.string.stats_fastest_pace);
-
-            Pair<String, String> parts = formatter.getSpeedParts(trackStatistics.getMaxSpeed());
-            viewBinding.statsMaxSpeedValue.setText(parts.first);
-            viewBinding.statsMaxSpeedUnit.setText(parts.second);
-        }
+        updatedMaxSpeed(trackStatistics);
 
         // Set moving speed/pace
-        {
-            viewBinding.statsMovingSpeedLabel.setText(preferenceReportSpeed ? R.string.stats_average_moving_speed : R.string.stats_average_moving_pace);
-
-            Pair<String, String> parts = formatter.getSpeedParts(trackStatistics.getAverageMovingSpeed());
-            viewBinding.statsMovingSpeedValue.setText(parts.first);
-            viewBinding.statsMovingSpeedUnit.setText(parts.second);
-        }
+        updatedSetMovingSpeed(trackStatistics);
 
         // Set altitude gain and loss
-        {
-            Float altitudeGain = trackStatistics.getTotalAltitudeGain();
-            Float altitudeLoss_m = trackStatistics.getTotalAltitudeLoss();
-
-            Pair<String, String> parts;
-
-            parts = StringUtils.getAltitudeParts(getContext(), altitudeGain, unitSystem);
-            viewBinding.statsAltitudeGainValue.setText(parts.first);
-            viewBinding.statsAltitudeGainUnit.setText(parts.second);
-
-            parts = StringUtils.getAltitudeParts(getContext(), altitudeLoss_m, unitSystem);
-            viewBinding.statsAltitudeLossValue.setText(parts.first);
-            viewBinding.statsAltitudeLossUnit.setText(parts.second);
-
-            boolean show = altitudeGain != null && altitudeLoss_m != null;
-            viewBinding.statsAltitudeGroup.setVisibility(show ? View.VISIBLE : View.GONE);
-        }
+        updatedSetAltitudeGainAndLoss(trackStatistics);
     }
 
     private void updateSensorUI() {
